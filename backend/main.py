@@ -13,7 +13,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,7 +87,7 @@ async def api_text_to_speech(
 ):
     try:
         text = payload.get("text")
-        voice_type = payload.get("voice_type", "male")
+        voice_type = payload.get("voice_type", "")
         
         if not text:
             return Response(
