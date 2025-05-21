@@ -22,20 +22,77 @@ const Homepage = () => {
     setSummary("");
     setAudioUrl("");
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("action", action);
-
     try {
-      // Simulate upload progress
       const interval = setInterval(() => {
         setProgress((prev) => (prev >= 90 ? 90 : prev + 10));
       }, 200);
 
-      const response = await fetch("http://localhost:8000/api/process", {
-        method: "POST",
-        body: formData,
-      });
+      let response;
+      if (action === "summarize") {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("action", action);
+        
+        response = await fetch("http://localhost:8000/api/process", {
+          method: "POST",
+          body: formData,
+        });
+      } else if (action === "text-to-speech") {
+        let text;
+        if (file.type === "text/plain") {
+          text = await file.text();
+        } else if (file.type === "application/pdf") {
+          // For PDF files
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("action", "summarize"); 
+          
+          const processResponse = await fetch("http://localhost:8000/api/process", {
+            method: "POST",
+            body: formData,
+          });
+          
+          const processData = await processResponse.json();
+          if (!processData.success) {
+            throw new Error(processData.message || "Failed to extract text from PDF");
+          }
+          text = processData.result;
+        } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
+                  file.type === "application/msword") {
+          // For DOCX/DOC files
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("action", "summarize");
+          
+          const processResponse = await fetch("http://localhost:8000/api/process", {
+            method: "POST",
+            body: formData,
+          });
+          
+          const processData = await processResponse.json();
+          if (!processData.success) {
+            throw new Error(processData.message || "Failed to extract text from document");
+          }
+          text = processData.result;
+        } else {
+          throw new Error("Unsupported file type for text-to-speech");
+        }
+
+        if (!text || text.trim().length === 0) {
+          throw new Error("No text content found in the document");
+        }
+        
+        response = await fetch("http://localhost:8000/api/text-to-speech", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: text,
+            voice_type: "male"
+          }),
+        });
+      }
 
       clearInterval(interval);
       setProgress(100);
@@ -49,48 +106,36 @@ const Homepage = () => {
         }
       } else if (action === "text-to-speech") {
         if (response.ok) {
-          try {
-            const blob = await response.blob();
-            console.log("Received blob:", blob);
-            console.log("Blob type:", blob.type);
-
-            // Make sure we're getting audio/mpeg data
-            if (!blob.type.includes('audio/')) {
-              throw new Error('Received non-audio content from server');
-            }
-
-            // Create a new blob with explicit audio MIME type
-            const audioBlob = new Blob([blob], { 
-              type: 'audio/mpeg'  // Force MIME type to audio/mpeg
-            });
-            console.log("Created audioBlob:", audioBlob);
-
-            // Create and test the URL
-            const url = URL.createObjectURL(audioBlob);
-            console.log("Created URL:", url);
-
-            // Test if the audio is valid
-            const audio = new Audio();
-            audio.src = url;
-
-            // Wait for the audio to be loaded or fail
-            await new Promise((resolve, reject) => {
-              audio.onloadedmetadata = resolve;
-              audio.onerror = () => reject(new Error('Audio failed to load'));
+          const contentType = response.headers.get("content-type");
+          
+          if (contentType && contentType.includes("audio/")) {
+            try {
+              const blob = await response.blob();
+              const audioBlob = new Blob([blob], { type: 'audio/mpeg' });
+              const url = URL.createObjectURL(audioBlob);
               
-              // Set a timeout in case loading takes too long
-              setTimeout(() => reject(new Error('Audio loading timeout')), 5000);
-            });
-
-            setAudioUrl(url);
-          } catch (error) {
-            console.error("Audio processing error:", error);
-            setError(`Failed to process audio: ${error.message}`);
+              // Test if the audio is valid
+              const audio = new Audio();
+              audio.src = url;
+              
+              await new Promise((resolve, reject) => {
+                audio.onloadedmetadata = resolve;
+                audio.onerror = () => reject(new Error('Audio failed to load'));
+                setTimeout(() => reject(new Error('Audio loading timeout')), 5000);
+              });
+              
+              setAudioUrl(url);
+            } catch (error) {
+              console.error("Audio processing error:", error);
+              setError(`Failed to process audio: ${error.message}`);
+            }
+          } else {
+            const errorData = await response.json();
+            setError(errorData.message || "Failed to generate speech");
           }
         } else {
-          const errorText = await response.text();
-          console.error("Server response error:", errorText);
-          setError("Failed to generate speech. Server returned an error.");
+          const errorData = await response.json().catch(() => ({ message: "Failed to generate speech" }));
+          setError(errorData.message || "Failed to generate speech");
         }
       }
     } catch (err) {
@@ -131,7 +176,6 @@ const Homepage = () => {
     setIsPlaying(false);
   };
 
-  // Clean up function for audio URLs
   useEffect(() => {
     return () => {
       if (audioUrl) {
@@ -140,7 +184,6 @@ const Homepage = () => {
     };
   }, [audioUrl]);
 
-  // Audio element error handler
   const handleAudioError = (e) => {
     console.error("Audio playback error:", e);
     setError("Failed to play audio. Please try again.");
