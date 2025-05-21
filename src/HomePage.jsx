@@ -1,6 +1,12 @@
 import React, { useRef, useState, useEffect } from "react";
 import "./Homepage.css";
-import { FiUploadCloud, FiFile, FiCheck, FiPlay, FiPause } from "react-icons/fi";
+import {
+  FiUploadCloud,
+  FiFile,
+  FiCheck,
+  FiPlay,
+  FiPause,
+} from "react-icons/fi";
 
 const Homepage = () => {
   const fileInputRef = useRef(null);
@@ -32,7 +38,7 @@ const Homepage = () => {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("action", action);
-        
+
         response = await fetch("http://localhost:8000/api/process", {
           method: "POST",
           body: formData,
@@ -45,33 +51,46 @@ const Homepage = () => {
           // For PDF files
           const formData = new FormData();
           formData.append("file", file);
-          formData.append("action", "summarize"); 
-          
-          const processResponse = await fetch("http://localhost:8000/api/process", {
-            method: "POST",
-            body: formData,
-          });
-          
+          formData.append("action", "summarize");
+
+          const processResponse = await fetch(
+            "http://localhost:8000/api/process",
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
           const processData = await processResponse.json();
           if (!processData.success) {
-            throw new Error(processData.message || "Failed to extract text from PDF");
+            throw new Error(
+              processData.message || "Failed to extract text from PDF"
+            );
           }
           text = processData.result;
-        } else if (file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
-                  file.type === "application/msword") {
+        } else if (
+          file.type ===
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          file.type === "application/msword"
+        ) {
           // For DOCX/DOC files
           const formData = new FormData();
           formData.append("file", file);
           formData.append("action", "summarize");
-          
-          const processResponse = await fetch("http://localhost:8000/api/process", {
-            method: "POST",
-            body: formData,
-          });
-          
+
+          const processResponse = await fetch(
+            "http://localhost:8000/api/process",
+            {
+              method: "POST",
+              body: formData,
+            }
+          );
+
           const processData = await processResponse.json();
           if (!processData.success) {
-            throw new Error(processData.message || "Failed to extract text from document");
+            throw new Error(
+              processData.message || "Failed to extract text from document"
+            );
           }
           text = processData.result;
         } else {
@@ -81,7 +100,7 @@ const Homepage = () => {
         if (!text || text.trim().length === 0) {
           throw new Error("No text content found in the document");
         }
-        
+
         response = await fetch("http://localhost:8000/api/text-to-speech", {
           method: "POST",
           headers: {
@@ -89,7 +108,7 @@ const Homepage = () => {
           },
           body: JSON.stringify({
             text: text,
-            voice_type: "male"
+            voice_type: "",
           }),
         });
       }
@@ -107,23 +126,26 @@ const Homepage = () => {
       } else if (action === "text-to-speech") {
         if (response.ok) {
           const contentType = response.headers.get("content-type");
-          
+
           if (contentType && contentType.includes("audio/")) {
             try {
               const blob = await response.blob();
-              const audioBlob = new Blob([blob], { type: 'audio/mpeg' });
+              const audioBlob = new Blob([blob], { type: "audio/mpeg" });
               const url = URL.createObjectURL(audioBlob);
-              
+
               // Test if the audio is valid
               const audio = new Audio();
               audio.src = url;
-              
+
               await new Promise((resolve, reject) => {
                 audio.onloadedmetadata = resolve;
-                audio.onerror = () => reject(new Error('Audio failed to load'));
-                setTimeout(() => reject(new Error('Audio loading timeout')), 5000);
+                audio.onerror = () => reject(new Error("Audio failed to load"));
+                setTimeout(
+                  () => reject(new Error("Audio loading timeout")),
+                  5000
+                );
               });
-              
+
               setAudioUrl(url);
             } catch (error) {
               console.error("Audio processing error:", error);
@@ -134,7 +156,9 @@ const Homepage = () => {
             setError(errorData.message || "Failed to generate speech");
           }
         } else {
-          const errorData = await response.json().catch(() => ({ message: "Failed to generate speech" }));
+          const errorData = await response
+            .json()
+            .catch(() => ({ message: "Failed to generate speech" }));
           setError(errorData.message || "Failed to generate speech");
         }
       }
@@ -199,7 +223,8 @@ const Homepage = () => {
       <section className="hero-section">
         <h1 className="hero-title">Transform Long Text into Clear Summaries</h1>
         <p className="hero-subtitle">
-          Upload your documents and get instant, accurate summaries powered by AI
+          Upload your documents and get instant, accurate summaries powered by
+          AI
         </p>
       </section>
 
@@ -220,7 +245,13 @@ const Homepage = () => {
           />
           <FiUploadCloud className="upload-icon" size={48} />
           <p>Drag and drop your file here or click to browse</p>
-          <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "0.5rem" }}>
+          <p
+            style={{
+              fontSize: "0.875rem",
+              color: "#64748b",
+              marginTop: "0.5rem",
+            }}
+          >
             Supports PDF, DOC, DOCX, and TXT files
           </p>
         </div>
@@ -267,12 +298,8 @@ const Homepage = () => {
         </button>
 
         {/* Results Section */}
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        
+        {error && <div className="error-message">{error}</div>}
+
         {summary && (
           <div className="summary-container">
             <h3>Summary</h3>
@@ -321,8 +348,8 @@ const Homepage = () => {
           <div className="service-card">
             <h3>Multiple Formats</h3>
             <p>
-              Support for various document formats including PDF, DOC,
-              DOCX, and plain text files.
+              Support for various document formats including PDF, DOC, DOCX, and
+              plain text files.
             </p>
           </div>
         </div>
@@ -333,9 +360,9 @@ const Homepage = () => {
         <h2>About TextSummarizer</h2>
         <p>
           TextSummarizer is your intelligent companion for processing and
-          understanding text content. Whether you're a student, professional,
-          or researcher, our AI-powered tools help you extract meaningful
-          insights from any document quickly and accurately.
+          understanding text content. Whether you're a student, professional, or
+          researcher, our AI-powered tools help you extract meaningful insights
+          from any document quickly and accurately.
         </p>
       </section>
     </div>
