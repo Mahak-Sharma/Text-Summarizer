@@ -1,25 +1,24 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse, Response
 from transformers import pipeline
-from gtts import gTTS
 import os
 import io
 import docx
 import PyPDF2
+from text_to_speech import text_to_speech
+import json
 
 app = FastAPI()
 
-# Add CORS middleware to allow frontend requests
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize the summarization pipeline
 summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
 def extract_text_from_file(file_content: bytes, file_type: str) -> str:
@@ -38,10 +37,6 @@ def extract_text_from_file(file_content: bytes, file_type: str) -> str:
 
 @app.post("/api/process")
 async def process_document(file: UploadFile = File(...), action: str = "summarize"):
-    """
-    Endpoint to process uploaded documents
-    Supports: summarization and text-to-speech
-    """
     try:
         # Read file content
         content = await file.read()
@@ -50,7 +45,7 @@ async def process_document(file: UploadFile = File(...), action: str = "summariz
         text = extract_text_from_file(content, file.content_type)
 
         if action == "summarize":
-            # Split text into chunks if it's too long (BART has a max input length)
+            # Splits text into chunks
             max_chunk_length = 1024
             chunks = [text[i:i + max_chunk_length] for i in range(0, len(text), max_chunk_length)]
             
@@ -70,38 +65,6 @@ async def process_document(file: UploadFile = File(...), action: str = "summariz
                 "type": "summary",
                 "message": "Document summarized successfully"
             }
-        
-        elif action == "text-to-speech":
-            try:
-                # Create temporary file
-                temp_file = "temp_audio.mp3"
-                tts = gTTS(text=text, lang='en')
-                tts.save(temp_file)
-                
-                # Read the file content
-                with open(temp_file, "rb") as audio_file:
-                    audio_content = audio_file.read()
-                
-                # Clean up the temporary file
-                os.remove(temp_file)
-                
-                # Return audio with proper headers
-                return Response(
-                    content=audio_content,
-                    media_type="audio/mpeg",
-                    headers={
-                        "Content-Type": "audio/mpeg",
-                        "Content-Length": str(len(audio_content))
-                    }
-                )
-            except Exception as e:
-                return {
-                    "success": False,
-                    "result": None,
-                    "type": None,
-                    "message": f"Error creating text-to-speech: {str(e)}"
-                }
-
         else:
             return {
                 "success": False,
@@ -117,6 +80,43 @@ async def process_document(file: UploadFile = File(...), action: str = "summariz
             "type": None,
             "message": f"Error processing document: {str(e)}"
         }
+
+@app.post("/api/text-to-speech")
+async def api_text_to_speech(
+    payload: dict = Body(...)
+):
+    try:
+        text = payload.get("text")
+        voice_type = payload.get("voice_type", "male")
+        
+        if not text:
+            return Response(
+                content=json.dumps({"success": False, "message": "No text provided."}),
+                media_type="application/json",
+                status_code=400
+            )
+            
+        audio_path = text_to_speech(text, voice_type)
+        
+        if not os.path.exists(audio_path):
+            return Response(
+                content=json.dumps({"success": False, "message": "Failed to generate audio file."}),
+                media_type="application/json",
+                status_code=500
+            )
+        
+        return FileResponse(
+            audio_path,
+            media_type="audio/mpeg",
+            filename="speech.mp3"
+        )
+        
+    except Exception as e:
+        return Response(
+            content=json.dumps({"success": False, "message": f"Error: {str(e)}"}),
+            media_type="application/json",
+            status_code=500
+        )
 
 if __name__ == "__main__":
     import uvicorn
