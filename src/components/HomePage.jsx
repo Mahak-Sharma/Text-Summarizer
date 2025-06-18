@@ -300,7 +300,7 @@ const HomePage = () => {
         <Col md={8}>
           <Card className="upload-card">
             <Card.Body>
-              <h2 className="text-center mb-4">Document Processing</h2>
+              <h2 className="text-center mb-4">Add Texts to summarize</h2>
 
               <div className="action-buttons mb-4">
                 <Button

@@ -1,19 +1,47 @@
 import speech_recognition as sr
-from transformers import pipeline
 import tempfile
 import os
+import re
 from pydub import AudioSegment
 from fastapi import UploadFile
 
 # Initialize the speech recognizer
 recognizer = sr.Recognizer()
 
-# Initialize the summarizer with more detailed parameters
-summarizer = pipeline(
-    "summarization",
-    model="facebook/bart-large-cnn",
-    device=0 if os.environ.get("CUDA_VISIBLE_DEVICES") else -1
-)
+def clean_text(text):
+    """Clean and preprocess text for better summarization"""
+    # Remove extra whitespace
+    text = re.sub(r'\s+', ' ', text)
+    # Remove special characters but keep punctuation
+    text = re.sub(r'[^\w\s\.\,\!\?\;\:\-\(\)]', '', text)
+    # Remove multiple periods
+    text = re.sub(r'\.+', '.', text)
+    return text.strip()
+
+def smart_chunk_text(text, max_length=1024):
+    """Split text into smart chunks based on sentences and paragraphs"""
+    # Clean the text first
+    text = clean_text(text)
+    
+    # Split into sentences
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    
+    chunks = []
+    current_chunk = ""
+    
+    for sentence in sentences:
+        # If adding this sentence would exceed max_length, save current chunk and start new one
+        if len(current_chunk + sentence) > max_length and current_chunk:
+            chunks.append(current_chunk.strip())
+            current_chunk = sentence
+        else:
+            current_chunk += " " + sentence if current_chunk else sentence
+    
+    # Add the last chunk if it has content
+    if current_chunk.strip():
+        chunks.append(current_chunk.strip())
+    
+    return chunks
 
 def convert_to_wav(input_path, output_path):
     """
@@ -47,48 +75,74 @@ def speech_to_text(audio_file_path):
     except sr.RequestError as e:
         return f"Could not request results from Speech Recognition service; {e}"
 
-def generate_summary(text):
+def generate_summary(text, summarizer):
     """
-    Generate a more detailed summary from the transcribed text
+    Generate a high-quality summary from the transcribed text
     """
     try:
-        # Split text into chunks if it's too long
-        max_chunk_length = 1024
-        chunks = [text[i:i + max_chunk_length] for i in range(0, len(text), max_chunk_length)]
+        # Clean the text
+        text = clean_text(text)
         
-        # Summarize each chunk with more detailed parameters
+        # If text is too short, return as is
+        if len(text.split()) < 50:
+            return {
+                "detailed_summary": text,
+                "overall_summary": text
+            }
+        
+        # Split into smart chunks
+        chunks = smart_chunk_text(text, max_length=1024)
+        
         summaries = []
-        for chunk in chunks:
-            if len(chunk.strip()) > 100:  # Only summarize chunks with substantial content
-                summary = summarizer(
-                    chunk,
-                    max_length=200,  # Increased from 130
-                    min_length=50,   # Increased from 30
-                    do_sample=False,
-                    num_beams=4,     # Added for better quality
-                    length_penalty=2.0,  # Added to encourage longer summaries
-                    early_stopping=True
-                )
-                summaries.append(summary[0]['summary_text'])
         
-        # Combine summaries with better formatting
+        for chunk in chunks:
+            if len(chunk.strip()) > 100:  # Only summarize substantial chunks
+                try:
+                    # Use better parameters for summarization
+                    summary = summarizer(
+                        chunk,
+                        max_length=200,  # Increased for better coverage
+                        min_length=50,   # Increased for more meaningful summaries
+                        do_sample=False,  # Deterministic output
+                        num_beams=4,     # Better quality with beam search
+                        length_penalty=2.0,  # Encourage longer summaries
+                        early_stopping=True,
+                        no_repeat_ngram_size=3  # Avoid repetition
+                    )
+                    summaries.append(summary[0]['summary_text'])
+                except Exception as e:
+                    print(f"Error summarizing chunk: {e}")
+                    # If summarization fails, use the chunk as is
+                    summaries.append(chunk[:200] + "..." if len(chunk) > 200 else chunk)
+        
+        # Combine summaries
         final_summary = " ".join(summaries)
         
-        # If the text is long enough, generate a final overall summary
-        if len(final_summary) > 500:
-            overall_summary = summarizer(
-                final_summary,
-                max_length=150,
-                min_length=50,
-                do_sample=False,
-                num_beams=4,
-                length_penalty=2.0,
-                early_stopping=True
-            )
-            return {
-                "detailed_summary": final_summary,
-                "overall_summary": overall_summary[0]['summary_text']
-            }
+        # If the combined summary is still too long, create a final overall summary
+        if len(final_summary.split()) > 300:
+            try:
+                overall_summary = summarizer(
+                    final_summary,
+                    max_length=150,
+                    min_length=50,
+                    do_sample=False,
+                    num_beams=4,
+                    length_penalty=2.0,
+                    early_stopping=True,
+                    no_repeat_ngram_size=3
+                )
+                return {
+                    "detailed_summary": final_summary,
+                    "overall_summary": overall_summary[0]['summary_text']
+                }
+            except Exception as e:
+                print(f"Error creating final summary: {e}")
+                # If final summarization fails, truncate for overall summary
+                overall_summary = final_summary[:300] + "..." if len(final_summary) > 300 else final_summary
+                return {
+                    "detailed_summary": final_summary,
+                    "overall_summary": overall_summary
+                }
         
         return {
             "detailed_summary": final_summary,
@@ -100,7 +154,7 @@ def generate_summary(text):
             "overall_summary": f"Error generating summary: {str(e)}"
         }
 
-def process_audio_file(audio_file: UploadFile):
+def process_audio_file(audio_file: UploadFile, summarizer):
     """
     Process audio file and generate summary
     """
@@ -138,7 +192,7 @@ def process_audio_file(audio_file: UploadFile):
                 }
             
             # Generate summary
-            summary_result = generate_summary(transcribed_text)
+            summary_result = generate_summary(transcribed_text, summarizer)
             
             return {
                 "success": True,

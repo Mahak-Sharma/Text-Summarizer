@@ -91,7 +91,7 @@ const SpeechToText = () => {
         formData.append('audio_file', audioFile);
 
         try {
-            const response = await fetch('https://text-summarizer-backend.onrender.com/api/speech-to-text', {
+            const response = await fetch('http://localhost:8000/api/speech-to-text', {
                 method: 'POST',
                 body: formData,
             });
