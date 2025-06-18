@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './SpeechToText.css';
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
 const SpeechToText = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [transcription, setTranscription] = useState('');
@@ -91,7 +93,7 @@ const SpeechToText = () => {
         formData.append('audio_file', audioFile);
 
         try {
-            const response = await fetch('http://localhost:8000/api/speech-to-text', {
+            const response = await fetch(`${backendUrl}/api/speech-to-text`, {
                 method: 'POST',
                 body: formData,
             });

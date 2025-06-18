@@ -15,17 +15,18 @@ from text_to_speech import text_to_speech
 from speech_to_text import process_audio_file
 import json
 
-# Limit Hugging Face cache to avoid memory issues
 os.environ["TRANSFORMERS_CACHE"] = "/tmp"
-
+ngrok_url = os.getenv("NGROK_URL")
 app = FastAPI()
-
+print("NGROK_URL from env:", ngrok_url)
 # CORS settings
 origins = [
     "http://localhost:5173",
     "http://localhost:3000",
+    "https://text-summarizer-3b89a.web.app",
+    ngrok_url,
 ]
-
+print("CORS origins:", origins)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -34,10 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load HF token from .env
 hf_token = os.getenv("HF_TOKEN")
-
-# Load a better model for summarization
 # Using facebook/bart-large-cnn which is better for summarization
 tokenizer = AutoTokenizer.from_pretrained("facebook/bart-large-cnn", use_auth_token=hf_token)
 model = AutoModelForSeq2SeqLM.from_pretrained("facebook/bart-large-cnn", use_auth_token=hf_token)
@@ -99,13 +97,13 @@ def generate_high_quality_summary(text):
                     # Use better parameters for summarization
                     summary = summarizer(
                         chunk,
-                        max_length=200,  # Increased for better coverage
-                        min_length=50,   # Increased for more meaningful summaries
-                        do_sample=False,  # Deterministic output
-                        num_beams=4,     # Better quality with beam search
-                        length_penalty=2.0,  # Encourage longer summaries
+                        max_length=200,  
+                        min_length=50,   
+                        do_sample=False, 
+                        num_beams=4,     
+                        length_penalty=2.0, 
                         early_stopping=True,
-                        no_repeat_ngram_size=3  # Avoid repetition
+                        no_repeat_ngram_size=3 
                     )
                     summaries.append(summary[0]['summary_text'])
                 except Exception as e:

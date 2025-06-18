@@ -33,6 +33,8 @@ import {
 import SpeechToText from "./SpeechToText";
 import "./HomePage.css";
 
+const backendUrl = import.meta.env.VITE_BACKEND_URL;
+
 const HomePage = () => {
   const [selectedAction, setSelectedAction] = useState(null);
   const [file, setFile] = useState(null);
@@ -60,7 +62,6 @@ const HomePage = () => {
     if (selectedFile) {
       setFile(selectedFile);
       setError("");
-      // Reset audio states when new file is selected
       setAudioUrl(null);
       setIsPlaying(false);
       setCurrentTime(0);
@@ -189,7 +190,7 @@ const HomePage = () => {
 
     try {
       if (selectedAction === "summarize") {
-        const response = await fetch(`http://localhost:8000/api/process`, {
+        const response = await fetch(`${backendUrl}/api/process`, {
           method: "POST",
           body: formData,
         });
@@ -207,7 +208,7 @@ const HomePage = () => {
         }
       } else {
         // For text-to-speech, first get the text content
-        const textResponse = await fetch(`http://localhost:8000/api/process`, {
+        const textResponse = await fetch(`${backendUrl}/api/process`, {
           method: "POST",
           body: formData,
         });
@@ -225,19 +226,16 @@ const HomePage = () => {
         await saveToFirebase(file, textData.result);
 
         // Then convert the text to speech
-        const audioResponse = await fetch(
-          `http://localhost:8000/api/text-to-speech`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              text: textData.result,
-              voice_type: "default",
-            }),
-          }
-        );
+        const audioResponse = await fetch(`${backendUrl}/api/text-to-speech`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: textData.result,
+            voice_type: "default",
+          }),
+        });
 
         if (!audioResponse.ok) {
           throw new Error(`Error: ${audioResponse.statusText}`);

@@ -101,13 +101,13 @@ def generate_summary(text, summarizer):
                     # Use better parameters for summarization
                     summary = summarizer(
                         chunk,
-                        max_length=200,  # Increased for better coverage
-                        min_length=50,   # Increased for more meaningful summaries
-                        do_sample=False,  # Deterministic output
-                        num_beams=4,     # Better quality with beam search
-                        length_penalty=2.0,  # Encourage longer summaries
+                        max_length=200,  
+                        min_length=50,   
+                        do_sample=False,  
+                        num_beams=4,     
+                        length_penalty=2.0,  
                         early_stopping=True,
-                        no_repeat_ngram_size=3  # Avoid repetition
+                        no_repeat_ngram_size=3  
                     )
                     summaries.append(summary[0]['summary_text'])
                 except Exception as e:
