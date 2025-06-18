@@ -1,0 +1,124 @@
+.speech-to-text-container {
+    padding: 2rem 0;
+}
+
+.speech-card {
+    background: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.speech-card h2 {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.form-select {
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-select:focus {
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25);
+}
+
+.recording-controls {
+    margin: 2rem 0;
+}
+
+.record-btn, .stop-btn, .upload-btn, .login-btn {
+    padding: 0.8rem 2rem;
+    font-size: 1.1rem;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+}
+
+.record-btn:hover, .stop-btn:hover, .upload-btn:hover, .login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.record-btn {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.stop-btn {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.upload-btn {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.login-btn {
+    background-color: #007bff;
+    border-color: #007bff;
+    padding: 0.8rem 3rem;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+    font-size: 2rem;
+    color: #007bff;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.transcription-box, .summary-box {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.transcription-box h3, .summary-box h3 {
+    color: #2c3e50;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.transcription-content, .summary-content {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    color: #333;
+}
+
+.lock-icon {
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.text-muted {
+    color: #6c757d !important;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .speech-to-text-container {
+        padding: 1rem;
+    }
+
+    .speech-card {
+        margin: 0;
+    }
+
+    .upload-section {
+        padding: 1rem;
+    }
+
+    .record-btn, .stop-btn, .upload-btn {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+} 

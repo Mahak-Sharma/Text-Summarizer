@@ -1,0 +1,15 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+python-multipart==0.0.6
+transformers==4.35.2
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==2.1.0+cpu
+numpy==1.24.3
+python-dotenv==1.0.0
+pydantic==2.5.2
+accelerate==0.20.3
+python-docx==0.8.11
+pdfplumber==0.7.6
+pydub==0.25.1
+SpeechRecognition==3.10.0
+gtts==2.3.2
